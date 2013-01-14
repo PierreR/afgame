@@ -17,32 +17,31 @@ import qualified Data.Sequence as S
 
 -------------------------------------------------------------------------------
 -- 
---In case of a strike or spare, the score of one shot will depend on the next
+-- In case of a strike or spare, the score of one shot will depend on the next
 -- shots. Consequently there is not point to calculate the score while we update
 -- the board and this implementation separate the two concerns.
 ------------------------------------------------------------------------------ 
 
 
--- A shot can be  a Strike (all pins knocked down in one shot), 
---                a Spare (all pins knocked down within two shots
---                or just Normal
+-- | A shot can be a Strike (all pins knocked down in one shot), 
+-- a Spare (all pins knocked down within two shots or just Normal.
 data Hit = Strike | Spare | Normal deriving (Eq,Show)
 
--- A shot is defined by the hit together with the number of pins knocked down
+-- | A shot is defined by the hit together with the number of pins knocked down.
 type Shot =  (Hit, Int)
 
--- A Frame is a list of shots
+-- | A Frame is a list of shots.
 type Frame = [Shot]
 
--- A board composed of frames can handle the whole game state
+-- | A board composed of frames hold the whole game state.
 type Board = [Frame]
 
--- | The forth frame is always the last frame of a board.
+-- | The forth frame is always the last frame.
 isLastFrame :: Board -> Bool
 isLastFrame b = length b >= 5
 
--- | A frame is composed of maximum 3 shots and if over if all pins are down 
---   However the last frame is allowed to go up to 4 shots to account for a strike or a spare
+-- | A frame is composed of maximum 3 shots and is over whever all pins are down. 
+-- But the last frame is allowed to go up to 4 shots to account for a strike or spare.
 isFrameOver :: Frame -> Board -> Bool
 isFrameOver f b
     | isLastFrame b = length f >= 4
@@ -62,37 +61,35 @@ updateBoard a board@(currentFrame:xs) =
         where newBoard = (updateFrame a currentFrame board) ++ xs
 
 -- | From the current frame, either
---      push the new shot in the current frame
---   or create a new frame containing the sole new shot.
---   Return as a list of one or two frame(s)
+--      - push the new shot in the current frame
+--   or - create a new frame containing the sole new shot.
+-- Return as a list of one or two frame(s).
 updateFrame :: Int -> Frame -> Board -> [Frame]
 updateFrame a f b
     | isFrameOver f b = [[newShot a f], f]  -- create a new frame with one new shot
     | otherwise       = [(newShot a f) : f] -- push the new shot in the current frame
 
--- | Within a frame, from the number of pins knockned down,
---      decide what hit qualified the score
---      In other words, construct the Shot datatype.
+-- | Within a frame, from the number of pins down, construct a 'Shot'.
 newShot :: Int -> Frame -> Shot
 newShot a  f
     | a == 15                   -- Strike !
                                 = (Strike, 15)
     | not (null f)              -- check the list is not empty 
       && a + previousShot == 15 -- Spare if we score exactly 15 with the previous shot
-      && previousHit /= Spare   -- check previous was not a spare (it can happen in the last frame)
+      && previousHit /= Spare   -- check previous is not a spare (only happens in the last frame)
                                 = (Spare, a)
     | otherwise
                                 = (Normal, a)
     where (previousHit, previousShot) = head f
 
 -- | Calculate the score of the updated board.
---   First we flatten (concat) the board to remove frames information
---   Then we calc each score chronological wise:
---     indexing allows to look into the future to account for Strikes & Spares
+-- First we flatten (concat) the board to remove frames information
+-- Then we calc each score chronological wise.
+-- Indexing allows to look into the future to account for Strikes & Spares
 calcScore :: Board -> Int
 calcScore b =
     -- reverse to get all shots in chronological order
-    -- it makes it easier to reason about what is "after" one shot
+    -- it makes it easier to reason about what is "after" one indexed shot
     let allShots = (reverse . concat) b 
         indexedShots = S.fromList allShots
     in S.foldlWithIndex (calcShot allShots) 0 indexedShots
@@ -107,7 +104,10 @@ calcScore b =
                 accScore = acc + a -- sum the new score in the fold accumulator
                 after = drop (succ i) xs -- timewise, list of shots recorded after the current index 
 
--- utilities
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
 
 sumShots :: [Shot] -> Int
 sumShots xs = sum $ map snd xs
