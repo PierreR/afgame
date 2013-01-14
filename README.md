@@ -3,7 +3,7 @@ Description
 
 Implementation in several languages of the african bowling game
 
-The specification of the game are listed in the African-Bowling.pdf file.
+See [Specifications](/African-Bowling.pdf).
 
 History
 =======
