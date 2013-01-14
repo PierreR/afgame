@@ -1,12 +1,12 @@
 ------------------------------------------------------------------------------
 -- | This module calculates the score of the african game.
--- The definition of the game is given by the pdf at the root of the project.
--- It uses a state monad that hold all 'current scores' and the
--- status of the game (called the board).
+-- See <https://github.com/PierreR/afgame/README.md> for the specifications.
+-- It uses a state monad to hold all 'current scores' (the value) together with
+-- the status of the game (called the board).
 -- One important note :
 -- According to the definition of the game, a strike or spare earns the point of 
--- the next three or two shots. The current implementation just adds the "after" shots
--- (the pins knocked down), not the real score obtained by these shots
+-- the next three or two shots. This implementation just adds the "after" shots
+-- (the pins knocked down), not the real score obtained by these shots.
 
 module Afgame (shot, Hit(..))
 where
