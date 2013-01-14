@@ -1,0 +1,9 @@
+*.pyc
+dist
+cabal-dev
+*.6
+*.out
+_*
+*.6
+*.out
+_*

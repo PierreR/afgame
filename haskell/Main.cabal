@@ -1,0 +1,37 @@
+name:           afgame
+version:        0.1
+cabal-version:  >= 1.2
+build-type:     Simple
+author:         pradermecker
+
+
+executable afgame
+  hs-source-dirs:  src
+  main-is:         Main.hs
+  build-depends:   base >= 4
+                   , test-framework
+                   , test-framework-hunit
+                   , test-framework-quickcheck2
+                   , HUnit
+                   , QuickCheck >=2
+                   , mtl, containers, Cabal
+  ghc-options:     -Wall
+  extensions: DoAndIfThenElse
+              MultiParamTypeClasses
+              TypeFamilies
+              OverloadedStrings
+
+
+test-suite tests
+  type:              detailed-0.9
+  test-module:       Main
+  hs-source-dirs:    src, test
+  build-depends:     base >= 4.0
+                     , test-framework
+                     , test-framework-hunit
+                     , test-framework-quickcheck2
+                     , HUnit
+                     , QuickCheck >=2
+                     , mtl
+  other-modules:	Afgame
+  ghc-options:       -Wall
