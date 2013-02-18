@@ -74,7 +74,8 @@ isGameOver b =
         then True
         else False
 
--- | Shots occurs within the State monad.
+-- | Shots occurs within the StateT monad
+-- it returns Nothing when the game is over (noop)
 shot :: Int -> StateT Board Maybe Int
 shot a = StateT $ updateBoard a
 
