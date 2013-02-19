@@ -29,18 +29,25 @@ type Shot =  (Hit, Int)
 data Hit = Strike | Spare | Normal deriving (Eq,Show)
 
 -- | Shots happens within Frames
+-- A frame is a list of shots.
 type Frame = [Shot]
+
+-- | all pins
+all_pins = 15
+
+-- | the game breaks down into 5 frames
+max_frame = 5
 
 -- | Within a Frame, from the number of pins down, construct a 'Shot'.
 newShot :: Int -> Frame -> Shot
 newShot a  f
-    | isStrike a   = (Strike, 15)
+    | isStrike a   = (Strike, all_pins)
     | isSpare a f  = (Spare, a)
-    | otherwise    = (Normal, a)-- | A Frame is a list of shots.
+    | otherwise    = (Normal, a)
 
 -- | Strike when all the pins are knocked down
 isStrike :: Int -> Bool
-isStrike a = a == 15
+isStrike a = a == all_pins
 
 -- | Spare when
 --     1. the frame is not empty
@@ -50,7 +57,7 @@ isSpare :: Int -> Frame -> Bool
 isSpare a f =
     let (previousHit, previousShot) = head f
     in  not (null f)
-        && a + previousShot == 15
+        && a + previousShot == all_pins
         && previousHit /= Spare
 
 -- | A board composed of frames hold the whole game state.
@@ -58,18 +65,18 @@ type Board = [Frame]
 
 -- | The forth frame is always the last frame.
 isLastFrame :: Board -> Bool
-isLastFrame b = length b >= 5
+isLastFrame b = length b >= max_frame
 
--- | A frame is composed of maximum 3 shots and is over whever all pins are down.
+-- | A frame is composed of maximum 3 shots and is over whenever all pins are down.
 -- The rule is different for the last frame.
 isFrameOver :: Board -> Bool
 isFrameOver b
     | isLastFrame b = isLastFrameOver f
-    | otherwise     = sumShots f >= 15 || length f >= 3
+    | otherwise     = sumShots f >= all_pins || length f >= 3
     where f = head b -- take the current frame
 
 -- | The last frame is not over in case of a strike or spare
--- It is composed of 3 to 4 shots if we need to account for a strike or spare
+-- It is composed of 3 to 4 shots depending on the need to account for a strike/spare.
 isLastFrameOver :: Frame -> Bool
 isLastFrameOver f
     | isLastFrameLonger f = length f >= 4
@@ -81,14 +88,21 @@ isLastFrameOver f
             S.foldrWithIndex isSpecial False (S.fromList f)
             where isSpecial i (h,_) acc = acc || (h == Strike || (i /= 0 && h == Spare))
 
+-- | The game is over at the last frame when the frame is over
 isGameOver :: Board -> Bool
 isGameOver b =
     if isLastFrame b && isFrameOver b
         then True
         else False
 
+-- | Bogus  if
+-- the board contains more than 5 frame
+-- the shot is above 15 (all pins)
+isBogus :: Int -> Board -> Bool
+isBogus a b = a > all_pins || length b > max_frame
+
 -- | Shots occurs within the StateT monad
--- it returns Nothing when the game is over (noop)
+-- it returns Nothing when the game is over or the update bogus (nnop)
 shot :: Int -> StateT Board Maybe Int
 shot a = StateT $ updateBoard a
 
@@ -97,10 +111,10 @@ shot a = StateT $ updateBoard a
 --      2. update the current score of the game
 updateBoard :: Int -> Board -> Maybe (Int, Board)
 updateBoard _ [] = error "Please initialize with a non empty board"
-updateBoard a board@(currentFrame:xs)
-    | isGameOver board = Nothing
-    | otherwise        = Just (calcScore newBoard, newBoard)
-    where newBoard = (updateFrame a currentFrame board) ++ xs
+updateBoard a b@(currentFrame:xs)
+    | isGameOver b || isBogus a b    = Nothing
+    | otherwise                      = Just (calcScore newBoard, newBoard)
+    where newBoard = (updateFrame a currentFrame b) ++ xs
 
 -- | From the current frame, either
 --      - push the new shot in the current frame
