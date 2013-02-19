@@ -65,12 +65,12 @@ testLastFrameSpare =
 testLastFrameSpecialOver_1 =
 	isLastFrameOver [strike, normal, normal]
 	@?=
-    False
+        False
 
 testLastFrameSpecialOver_2 =
 	isLastFrameOver [normal, spare, normal]
 	@?=
-    False
+        False
 
 testLastFrameNormalOver_1 =
 	isLastFrameOver [normal, normal, normal]
