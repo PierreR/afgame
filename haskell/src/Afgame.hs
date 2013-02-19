@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
--- | This module calculates the score of the african game.
+-- | This module calculates the score of the African game.
 -- See <https://github.com/PierreR/afgame/README.md> for the specifications.
 -- It uses a state monad to hold all 'current scores' (the value) together with
 -- the status of the game (called the board).
