@@ -62,6 +62,26 @@ testLastFrameSpare =
 	@?=
 	Just ([170, 200, 215, (215 + 5 + 5)], [[normal, normal, spare, normal], [strike],[strike], [strike], [strike]])
 
+testLastFrameSpecialOver_1 =
+	isLastFrameOver [strike, normal, normal]
+	@?=
+    False
+
+testLastFrameSpecialOver_2 =
+	isLastFrameOver [normal, spare, normal]
+	@?=
+    False
+
+testLastFrameNormalOver_1 =
+	isLastFrameOver [normal, normal, normal]
+	@?=
+	True
+
+testLastFrameNormalOver_2 =
+	isLastFrameOver [spare, normal, normal]
+	@?=
+	True
+
 tests =
     [ testGroup "Normal"
     	[ testCase "Update frames with 15 normal shots" testNormal
@@ -77,9 +97,14 @@ tests =
     	[ testCase "Just one Spare" testOneSpare
     	, testCase "The 2 next shots are added to the score of a spare" testSpareScore
     	, testCase "The 2 last shots are added to the score of the spare" testLastFrameSpare
-
     	]
-    ]
+    , testGroup "LastFrame"
+    	[ testCase "We should allow 4 shots in this frame" testLastFrameSpecialOver_1
+    	, testCase "We should allow only 3 shots in this frame" testLastFrameSpecialOver_2
+    	, testCase "We should allow only 3 shots in this frame" testLastFrameNormalOver_1
+    	, testCase "We should allow only 3 shots with only one spare at the first position" testLastFrameNormalOver_2
+    	]
+     ]
 
 
 --module Main (main)

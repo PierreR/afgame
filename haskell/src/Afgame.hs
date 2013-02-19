@@ -8,7 +8,7 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (shot, Hit(..))
+module Afgame (shot, Hit(..), isLastFrameOver)
 where
 
 import Control.Monad.State
@@ -61,12 +61,25 @@ isLastFrame :: Board -> Bool
 isLastFrame b = length b >= 5
 
 -- | A frame is composed of maximum 3 shots and is over whever all pins are down.
--- But the last frame is allowed to go up to 4 shots to account for a strike or spare.
+-- The rule is different for the last frame.
 isFrameOver :: Board -> Bool
 isFrameOver b
-    | isLastFrame b = length f >= 4
+    | isLastFrame b = isLastFrameOver f
     | otherwise     = sumShots f >= 15 || length f >= 3
     where f = head b -- take the current frame
+
+-- | The last frame is not over in case of a strike or spare
+-- It is composed of 3 to 4 shots if we need to account for a strike or spare
+isLastFrameOver :: Frame -> Bool
+isLastFrameOver f
+    | isLastFrameLonger f = length f >= 4
+    | otherwise           = length f >= 3
+    -- To have a longer frame:
+    -- one strike within the frame is enough
+    -- one spare is usually enough except if it is at the first position
+    where isLastFrameLonger f =
+            S.foldrWithIndex isSpecial False (S.fromList f)
+            where isSpecial i (h,_) acc = acc || (h == Strike || (i /= 0 && h == Spare))
 
 isGameOver :: Board -> Bool
 isGameOver b =
