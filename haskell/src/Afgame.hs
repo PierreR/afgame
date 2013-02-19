@@ -76,7 +76,7 @@ isFrameOver b
     where f = head b -- take the current frame
 
 -- | The last frame is not over in case of a strike or spare
--- It is composed of 3 to 4 shots depending on the need to account for a strike/spare.
+-- It is composed of 3 to 4 shots depending on the need to account for strike/spare.
 isLastFrameOver :: Frame -> Bool
 isLastFrameOver f
     | isLastFrameLonger f = length f >= 4
@@ -96,7 +96,7 @@ isGameOver b =
         else False
 
 -- | Bogus  if
--- the board contains more than 5 frame
+-- the board contains more than 5 frames
 -- the shot is above 15 (all pins)
 isBogus :: Int -> Board -> Bool
 isBogus a b = a > all_pins || length b > max_frame
@@ -127,7 +127,7 @@ updateFrame a f b
 
 
 -- | Calculate the score of the updated board.
--- First we flatten (concat) the board to remove frames information
+-- First we flatten (concat) the board to remove frame information
 -- Then we calc each score chronological wise.
 -- Indexing allows to look into the future to account for Strikes & Spares
 calcScore :: Board -> Int
