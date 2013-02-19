@@ -32,7 +32,7 @@ data Hit = Strike | Spare | Normal deriving (Eq,Show)
 -- A frame is a list of shots.
 type Frame = [Shot]
 
--- | all pins
+-- | There are 15 bowling pins to knock down
 all_pins = 15
 
 -- | the game breaks down into 5 frames
