@@ -154,4 +154,4 @@ calcScore b =
 --------------------------------------------------------------------------------
 
 sumShots :: [Shot] -> Int
-sumShots xs = sum $ map snd xs
+sumShots = sum . map snd
