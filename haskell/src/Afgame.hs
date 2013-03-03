@@ -153,5 +153,5 @@ calcScore b =
 -- Utilities
 --------------------------------------------------------------------------------
 
-sumShots :: [Shot] -> Int
+sumShots :: Frame -> Int
 sumShots = sum . map snd
