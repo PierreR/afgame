@@ -1,3 +1,4 @@
+
 ------------------------------------------------------------------------------
 -- | This module calculates the score of the African game.
 -- See <https://github.com/PierreR/afgame/README.md> for the specifications.
@@ -8,12 +9,19 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (shot, Hit(..), isLastFrameOver)
+module Afgame (hShot, Hit(..), isLastFrameOver)
 where
 
-import Control.Monad.State
+import Pipes
+import Pipes.Lift
+import Control.Monad(when)
+import qualified Control.Monad.State.Strict as S
 
-import qualified Data.Sequence as S
+import Control.Applicative
+
+import Control.Arrow ((>>>))
+
+import qualified Data.Sequence as Seq
 
 -------------------------------------------------------------------------------
 --
@@ -33,21 +41,21 @@ data Hit = Strike | Spare | Normal deriving (Eq,Show)
 type Frame = [Shot]
 
 -- | There are 15 bowling pins to knock down
-all_pins = 15
+allPins = 15
 
 -- | the game breaks down into 5 frames
-max_frame = 5
+maxFrame = 5
 
 -- | Within a Frame, from the number of pins down, construct a 'Shot'.
 newShot :: Int -> Frame -> Shot
 newShot a  f
-    | isStrike a   = (Strike, all_pins)
+    | isStrike a   = (Strike, allPins)
     | isSpare a f  = (Spare, a)
     | otherwise    = (Normal, a)
 
 -- | Strike when all the pins are knocked down
 isStrike :: Int -> Bool
-isStrike a = a == all_pins
+isStrike a = a == allPins
 
 -- | Spare when
 --     1. the frame is not empty
@@ -57,64 +65,47 @@ isSpare :: Int -> Frame -> Bool
 isSpare a f =
     let (previousHit, previousShot) = head f
     in  not (null f)
-        && a + previousShot == all_pins
+        && a + previousShot == allPins
         && previousHit /= Spare
 
 -- | A board composed of frames hold the whole game state.
 type Board = [Frame]
 
 -- | The forth frame is always the last frame.
+-- PS: '(>>>)' is defined as 'flip (.)' for '(->)'
 isLastFrame :: Board -> Bool
-isLastFrame b = length b >= max_frame
+isLastFrame = length  >>> (>= maxFrame)
 
 -- | A frame is composed of maximum 3 shots and is over whenever all pins are down.
 -- The rule is different for the last frame.
 isFrameOver :: Board -> Bool
 isFrameOver b
     | isLastFrame b = isLastFrameOver f
-    | otherwise     = sumShots f >= all_pins || length f >= 3
+    | otherwise     = sumShots f >= allPins || length f >= 3
     where f = head b -- take the current frame
 
 -- | The last frame is not over in case of a strike or spare
 -- It is composed of 3 to 4 shots depending on the need to account for strike/spare.
 isLastFrameOver :: Frame -> Bool
 isLastFrameOver f
-    | isLastFrameLonger f = length f >= 4
-    | otherwise           = length f >= 3
+    | isLonger   = length f >= 4
+    | otherwise  = length f >= 3
     -- To have a longer frame:
     -- one strike within the frame is enough
     -- one spare is usually enough except if it is at the first position
-    where isLastFrameLonger f =
-            S.foldrWithIndex isSpecial False (S.fromList f)
+    where isLonger  =
+            Seq.foldrWithIndex isSpecial False (Seq.fromList f)
             where isSpecial i (h,_) acc = acc || (h == Strike || (i /= 0 && h == Spare))
 
 -- | The game is over at the last frame when the frame is over
 isGameOver :: Board -> Bool
-isGameOver b =
-    if isLastFrame b && isFrameOver b
-        then True
-        else False
+isGameOver = (&&) <$> isLastFrame <*> isFrameOver
 
--- | Bogus  if
--- the board contains more than 5 frames
--- the shot is above 15 (all pins)
-isBogus :: Int -> Board -> Bool
-isBogus a b = a > all_pins || length b > max_frame
 
--- | Shots occurs within the StateT monad
--- it returns Nothing when the game is over or the update bogus (nnop)
-shot :: Int -> StateT Board Maybe Int
-shot a = StateT $ updateBoard a
+-- A normal frame is bogus if the shots add up for more than 15
+isFrameValid :: Board -> Bool
+isFrameValid = (||) <$> isLastFrame <*> (head >>> sumShots >>> (<= allPins))
 
--- | A new shot has two effects:
---      1. update the board, recording the shot and creating new frame if needed
---      2. update the current score of the game
-updateBoard :: Int -> Board -> Maybe (Int, Board)
-updateBoard _ [] = error "Please initialize with a non empty board"
-updateBoard a b@(currentFrame:xs)
-    | isGameOver b || isBogus a b    = Nothing
-    | otherwise                      = Just (calcScore newBoard, newBoard)
-    where newBoard = (updateFrame a currentFrame b) ++ xs
 
 -- | From the current frame, either
 --      - push the new shot in the current frame
@@ -122,9 +113,9 @@ updateBoard a b@(currentFrame:xs)
 -- Return as a list of one or two frame(s).
 updateFrame :: Int -> Frame -> Board -> [Frame]
 updateFrame a f b
-    | isFrameOver b   = [[newShot a f], f]  -- create a new frame with one new shot
-    | otherwise       = [(newShot a f) : f] -- push the new shot in the current frame
-
+    | isFrameOver b   = [[new], f]  -- create a new frame with one new shot
+    | otherwise       = [ new : f]  -- push the new shot in the current frame
+    where new = newShot a f
 
 -- | Calculate the score of the updated board.
 -- First we flatten (concat) the board to remove frame information
@@ -135,13 +126,13 @@ calcScore b =
     -- reverse to get all shots in chronological order
     -- it makes it easier to reason about what is "after" one indexed shot
     let allShots = (reverse . concat) b
-        indexedShots = S.fromList allShots
-    in S.foldlWithIndex (calcShot allShots) 0 indexedShots
+        indexedShots = Seq.fromList allShots
+    in Seq.foldlWithIndex (calcShot allShots) 0 indexedShots
     where
         calcShot :: [Shot] -> Int -> Int -> (Hit, Int) -> Int
         calcShot xs acc i (h,a)
-            | h == Strike = accScore  + (sumShots $ take 3 after) -- Strike earns the score of the 3 next shots
-            | h == Spare = accScore + (sumShots $ take 2 after)  -- Spare earns the score of the 2 next shots
+            | h == Strike = accScore + sumShots (take 3 after) -- Strike earns the score of the 3 next shots
+            | h == Spare  = accScore + sumShots (take 2 after) -- Spare earns the score of the 2 next shots
             | h == Normal = accScore
             | otherwise = 0
             where
@@ -155,3 +146,44 @@ calcScore b =
 
 sumShots :: Frame -> Int
 sumShots = sum . map snd
+
+
+isShotBogus :: Int -> Bool
+isShotBogus a = a > allPins
+
+
+newBoard :: Int -> Board -> Board
+newBoard a b@(currentFrame:xs) = 
+    updateFrame a currentFrame b ++ xs
+
+
+parseShot :: Pipe Int Int (S.StateT Board IO) ()
+parseShot = go
+    where
+        go = do
+            shot <- await
+            if (isShotBogus shot) 
+                then do
+                    liftIO $ putStrLn "Bogus shot"
+                    go
+                else do
+                    b <- lift $ S.get
+                    if (isGameOver b)
+                        then liftIO $ putStrLn "Game Over"
+                        else do
+                            let newB = newBoard shot b
+                            if isFrameValid newB
+                                then do
+                                    lift $ S.put newB
+                                    yield (calcScore newB)
+                                    liftIO $ putStrLn $ show newB
+                                else liftIO $ putStrLn "Frame invalid"
+                            go
+            
+
+emptyBoard :: Board
+emptyBoard = [[]]
+
+hShot :: Pipe Int Int IO ()
+hShot = evalStateP emptyBoard parseShot
+
