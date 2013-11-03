@@ -9,7 +9,7 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (handleShot, Hit(..), isLastFrameOver)
+module Afgame (score, Hit(..), isLastFrameOver)
 where
 
 import Pipes
@@ -21,6 +21,7 @@ import Control.Applicative
 import Control.Arrow ((>>>))
 
 import qualified Data.Sequence as Seq
+import Text.Printf
 
 -------------------------------------------------------------------------------
 --
@@ -69,8 +70,19 @@ isSpare a f =
         && a + previousShot == allPins
         && previousHit /= Spare
 
+isShotBogus :: Int -> Bool
+isShotBogus a = a > allPins
+
 -- | A board composed of frames hold the whole game state.
 type Board = [Frame]
+
+emptyBoard :: Board
+emptyBoard = [[]]
+
+newBoard :: Int -> Board -> Board
+newBoard _ [] = error "Board game should be initialized"
+newBoard a b@(currentFrame:xs) = 
+    updateFrame a currentFrame b ++ xs
 
 -- | The forth frame is always the last frame.
 -- PS: '(>>>)' is defined as 'flip (.)' for '(->)'
@@ -102,11 +114,9 @@ isLastFrameOver f
 isGameOver :: Board -> Bool
 isGameOver = (&&) <$> isLastFrame <*> isFrameOver
 
-
 -- A normal frame is bogus if the shots add up for more than 15
 isFrameValid :: Board -> Bool
 isFrameValid = (||) <$> isLastFrame <*> (head >>> sumShots >>> (<= allPins))
-
 
 -- | From the current frame, either
 --      - push the new shot in the current frame
@@ -149,19 +159,17 @@ sumShots :: Frame -> Int
 sumShots = sum . map snd
 
 
-isShotBogus :: Int -> Bool
-isShotBogus a = a > allPins
+--------------------------------------------------------------------------------
+-- Pipes
+--------------------------------------------------------------------------------
 
+filterShot :: Pipe Int Int IO ()
+filterShot = for cat $ \a -> 
+    if isShotBogus a 
+        then liftIO $ putStrLn "Bogus shot"
+        else yield a
 
-newBoard :: Int -> Board -> Board
-newBoard a b@(currentFrame:xs) = 
-    updateFrame a currentFrame b ++ xs
-
-
-filterBogusShot :: Pipe Int Int IO ()
-filterBogusShot = for cat (\a -> if isShotBogus a then liftIO $ putStrLn "Bogus shot" else yield a) 
-
-parseShot :: Pipe Int Int (S.StateT Board IO) ()
+parseShot :: Pipe Int (Board, Int) (S.StateT Board IO) ()
 parseShot = go
     where
         go = do
@@ -171,17 +179,16 @@ parseShot = go
             if isFrameValid b'
                 then do
                     lift $ S.put b'
-                    yield (calcScore b')
-                    liftIO $ print b'
-                else liftIO $ putStrLn "Frame invalid"
-            if isGameOver b' then liftIO $ putStrLn "Game Over" else go
-            
+                    yield (b', calcScore b')
+                else liftIO $ putStrLn "This shot creates an invalid frame. Shot ignored. Go on"
+            if isGameOver b' then liftIO $ putStrLn "The game is over" else go
 
-emptyBoard :: Board
-emptyBoard = [[]]
+pprint :: Pipe (Board, Int) String IO ()
+pprint = for cat $ \(b, a) -> do  
+    yield $ printf "Score is %d. Board is %s." a (show b)
 
-handleShot :: Pipe Int Int IO ()
-handleShot = filterBogusShot >-> evalStateP emptyBoard parseShot
-
+-- | Feed with Shot, `score` streams a display of the score as a `String`        
+score :: Pipe Int String IO ()
+score = filterShot >-> evalStateP emptyBoard parseShot >-> pprint
 
 
