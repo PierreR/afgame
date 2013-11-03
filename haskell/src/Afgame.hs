@@ -9,12 +9,11 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (hShot, Hit(..), isLastFrameOver)
+module Afgame (handleShot, Hit(..), isLastFrameOver)
 where
 
 import Pipes
 import Pipes.Lift
-import Control.Monad(when)
 import qualified Control.Monad.State.Strict as S
 
 import Control.Applicative
@@ -41,9 +40,11 @@ data Hit = Strike | Spare | Normal deriving (Eq,Show)
 type Frame = [Shot]
 
 -- | There are 15 bowling pins to knock down
+allPins :: Int
 allPins = 15
 
 -- | the game breaks down into 5 frames
+maxFrame :: Int
 maxFrame = 5
 
 -- | Within a Frame, from the number of pins down, construct a 'Shot'.
@@ -157,33 +158,30 @@ newBoard a b@(currentFrame:xs) =
     updateFrame a currentFrame b ++ xs
 
 
+filterBogusShot :: Pipe Int Int IO ()
+filterBogusShot = for cat (\a -> if isShotBogus a then liftIO $ putStrLn "Bogus shot" else yield a) 
+
 parseShot :: Pipe Int Int (S.StateT Board IO) ()
 parseShot = go
     where
         go = do
             shot <- await
-            if (isShotBogus shot) 
+            b <- lift S.get
+            let b' = newBoard shot b
+            if isFrameValid b'
                 then do
-                    liftIO $ putStrLn "Bogus shot"
-                    go
-                else do
-                    b <- lift $ S.get
-                    if (isGameOver b)
-                        then liftIO $ putStrLn "Game Over"
-                        else do
-                            let newB = newBoard shot b
-                            if isFrameValid newB
-                                then do
-                                    lift $ S.put newB
-                                    yield (calcScore newB)
-                                    liftIO $ putStrLn $ show newB
-                                else liftIO $ putStrLn "Frame invalid"
-                            go
+                    lift $ S.put b'
+                    yield (calcScore b')
+                    liftIO $ print b'
+                else liftIO $ putStrLn "Frame invalid"
+            if isGameOver b' then liftIO $ putStrLn "Game Over" else go
             
 
 emptyBoard :: Board
 emptyBoard = [[]]
 
-hShot :: Pipe Int Int IO ()
-hShot = evalStateP emptyBoard parseShot
+handleShot :: Pipe Int Int IO ()
+handleShot = filterBogusShot >-> evalStateP emptyBoard parseShot
+
+
 
