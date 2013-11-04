@@ -15,3 +15,18 @@ executable afgame
                   pipes-parse > 2.0
   ghc-options:     -Wall
 
+test-suite tests
+  default-language:  Haskell2010
+  type:              exitcode-stdio-1.0
+  main-is:           test.hs
+  hs-source-dirs:    src, test
+  build-depends:     base >= 4.0,
+                     mtl,
+                     containers,
+                     pipes > 4.0,
+                     test-framework,
+                     test-framework-hunit,
+                     test-framework-quickcheck2,
+                     HUnit
+  other-modules:  Afgame
+  ghc-options:       -Wall

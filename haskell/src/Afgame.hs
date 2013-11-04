@@ -9,7 +9,7 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (score, Hit(..), isLastFrameOver)
+module Afgame (getScore, score, scorePrinter, emptyBoard, Hit(..), Board, isLastFrameOver)
 where
 
 import Pipes
@@ -163,32 +163,44 @@ sumShots = sum . map snd
 -- Pipes
 --------------------------------------------------------------------------------
 
-filterShot :: Pipe Int Int IO ()
+filterShot :: Pipe Int Int IO r
 filterShot = for cat $ \a -> 
     if isShotBogus a 
         then liftIO $ putStrLn "Bogus shot"
         else yield a
 
-parseShot :: Pipe Int (Board, Int) (S.StateT Board IO) ()
+parseShot :: Consumer Int (S.StateT Board IO) Int
 parseShot = go
     where
         go = do
             shot <- await
             b <- lift S.get
-            let b' = newBoard shot b
+            let a = calcScore b'
+                b' = newBoard shot b
             if isFrameValid b'
                 then do
                     lift $ S.put b'
-                    yield (b', calcScore b')
-                else liftIO $ putStrLn "This shot creates an invalid frame. Shot ignored. Go on"
-            if isGameOver b' then liftIO $ putStrLn "The game is over" else go
+                else do
+                    liftIO $ putStrLn "This shot creates an invalid frame. Shot ignored. Go on"
+            if isGameOver b'
+                then do
+                    liftIO $ putStrLn "The game is over"
+                    return a
+                else go
 
-pprint :: Pipe (Board, Int) String IO ()
-pprint = for cat $ \(b, a) -> do  
-    yield $ printf "Score is %d. Board is %s." a (show b)
+scorePrinter :: Consumer (Int, Board) IO String
+scorePrinter = do
+    (a, b) <- await
+    lift $ printf "Score is %d. Board is %s." a (show b)
 
 -- | Feed with Shot, `score` streams a display of the score as a `String`        
-score :: Pipe Int String IO ()
-score = filterShot >-> evalStateP emptyBoard parseShot >-> pprint
+score :: Consumer Int IO (Int, Board)
+score = filterShot >-> runStateP emptyBoard parseShot
 
+--printScore :: Consumer Int IO ()
+--printScore = lift getLine >~ 
+getScore :: Consumer (Board, Int) IO Int
+getScore = do
+    (_, a) <- await
+    return a
 
