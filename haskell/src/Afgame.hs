@@ -9,11 +9,12 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (getScore, score, scorePrinter, emptyBoard, Hit(..), Board, isLastFrameOver)
+module Afgame (score, prompt, emptyBoard, Hit(..), Board, isLastFrameOver)
 where
 
 import Pipes
 import Pipes.Lift
+import qualified Pipes.Prelude as P
 import qualified Control.Monad.State.Strict as S
 
 import Control.Applicative
@@ -163,44 +164,44 @@ sumShots = sum . map snd
 -- Pipes
 --------------------------------------------------------------------------------
 
-filterShot :: Pipe Int Int IO r
-filterShot = for cat $ \a -> 
+prompt :: Producer' Int IO ()
+prompt =
+    (liftIO $ putStrLn "Let's start Booling ! Enter your shots.\n(enter 'q' to quit)") 
+    >> P.stdinLn
+    >-> P.takeWhile (/= "q")
+    >-> checkInput
+
+
+checkInput :: Pipe String Int IO ()
+checkInput = for P.read $ \a -> 
     if isShotBogus a 
         then liftIO $ putStrLn "Bogus shot"
         else yield a
 
-parseShot :: Consumer Int (S.StateT Board IO) Int
+parseShot :: Producer Int IO () -> Producer (Int, Board) (S.StateT Board IO) ()
 parseShot = go
     where
-        go = do
-            shot <- await
+        go p = do
             b <- lift S.get
-            let a = calcScore b'
-                b' = newBoard shot b
-            if isFrameValid b'
-                then do
-                    lift $ S.put b'
-                else do
-                    liftIO $ putStrLn "This shot creates an invalid frame. Shot ignored. Go on"
-            if isGameOver b'
-                then do
-                    liftIO $ putStrLn "The game is over"
-                    return a
-                else go
+            x <- liftIO $ next p
+            case x of
+                Right (a, p') -> do
+                    let score' = calcScore b'
+                        b' = newBoard a b
+                    if isFrameValid b'
+                        then do
+                            lift $ S.put b'
+                            yield (score', b')
+                        else do
+                            liftIO $ putStrLn "This shot creates an invalid frame. Shot ignored. Go on"
+                    if isGameOver b'
+                        then liftIO $ putStrLn "Game Over" >> return()
+                        else go p'
+                Left      r   -> return ()
 
-scorePrinter :: Consumer (Int, Board) IO String
-scorePrinter = do
-    (a, b) <- await
-    lift $ printf "Score is %d. Board is %s." a (show b)
+            
 
--- | Feed with Shot, `score` streams a display of the score as a `String`        
-score :: Consumer Int IO (Int, Board)
-score = filterShot >-> runStateP emptyBoard parseShot
-
---printScore :: Consumer Int IO ()
---printScore = lift getLine >~ 
-getScore :: Consumer (Board, Int) IO Int
-getScore = do
-    (_, a) <- await
-    return a
+-- | Feed with Shot, `score` produce the tuple (Score, Board)      
+score :: Producer Int IO () -> Producer (Int, Board) IO ()
+score p = evalStateP emptyBoard (parseShot p)
 
