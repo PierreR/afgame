@@ -18,6 +18,7 @@ import qualified Pipes.Prelude as P
 import qualified Control.Monad.State.Strict as S
 
 import Control.Applicative
+import Control.Monad
 
 import Control.Arrow ((>>>))
 
@@ -165,7 +166,7 @@ sumShots = sum . map snd
 
 prompt :: Producer' Int IO ()
 prompt =
-    (liftIO $ putStrLn "Let's start Booling ! Enter your shots.\n(enter 'q' to quit)") 
+    liftIO (putStrLn "Let's start Booling ! Enter your shots.\n(enter 'q' to quit)")
     >> P.stdinLn
     >-> P.takeWhile (/= "q")
     >-> checkInput
@@ -191,14 +192,12 @@ parseShot = go
                         then do
                             lift $ S.put b'
                             yield (score', b')
-                        else do
+                        else
                             liftIO $ putStrLn "This shot creates an invalid frame. Shot ignored. Go on"
                     if isGameOver b'
-                        then liftIO $ putStrLn "Game Over" >> return()
+                        then liftIO $ putStrLn "Game Over"
                         else go p'
                 Left ()       -> return ()
-
-            
 
 -- | Feed with Shot, `score` produce the tuple (Score, Board)      
 score :: Producer Int IO () -> Producer (Int, Board) IO ()
