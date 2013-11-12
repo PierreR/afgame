@@ -18,7 +18,6 @@ import qualified Pipes.Prelude as P
 import qualified Control.Monad.State.Strict as S
 
 import Control.Applicative
-import Control.Monad
 
 import Control.Arrow ((>>>))
 
