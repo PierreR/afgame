@@ -9,7 +9,7 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (score, prompt, emptyBoard, Hit(..), Board, isLastFrameOver)
+module Afgame (score, prompt, emptyBoard, Hit(..), Board, isLastFrameOver, parseShot)
 where
 
 import Pipes
@@ -22,7 +22,6 @@ import Control.Applicative
 import Control.Arrow ((>>>))
 
 import qualified Data.Sequence as Seq
-import Text.Printf
 
 -------------------------------------------------------------------------------
 --
@@ -197,7 +196,7 @@ parseShot = go
                     if isGameOver b'
                         then liftIO $ putStrLn "Game Over" >> return()
                         else go p'
-                Left      r   -> return ()
+                Left ()       -> return ()
 
             
 

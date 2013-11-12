@@ -27,39 +27,29 @@ testLastFrameNormal = do
     s <-  P.toListM $ score (each $ [15, 15, 15, 15, 5]) >-> P.map fst 
     s @?= [15,45,90,150,170]
 
---testGameOver =
---    runStateT (shot 5) [[strike, strike, strike, strike], [strike], [strike], [strike], [strike]]
---    @?=
---    Nothing
+testOneStrike = 
+    P.toListM (score $ yield 15) >>= -- without the do notation; arguably less clear
+        (@?= [(15,[[strike]])])
 
-testOneStrike = do
-    s <- P.toListM $ (score $ yield 15)
-    s @?= [(15,[[strike]])]
+testStrikeScore = do
+    s <- last <$> P.toListM (score $ each [15, 5, 5, 5, 5]) 
+    s @?= (50,[[normal],[normal, normal, normal],[strike]])
 
---testStrikeScore =
---    runStateT (sequence [shot 15, shot 5, shot 5, shot 5, shot 5]) [[]]
---    @?=
---    Just ([15,25,35,45,50], [[normal], [normal, normal, normal], [strike]])
+testLastFrameStrike = do
+    s <- P.toListM (evalStateP [[strike], [strike], [strike], [strike]] (parseShot $ each [15, 5, 5, 5]) >-> P.map fst)    
+    s @?= [210, 230, 245, 255]
 
---testLastFrameStrike =
---    runStateT (sequence [shot 15, shot 5, shot 5, shot 5]) [[strike], [strike], [strike], [strike]]
---    @?=
---    Just ([210, 230, 245, 255], [[normal, normal, normal, strike], [strike],[strike], [strike], [strike]])
+testOneSpare = do
+    s <- P.toListM (score $ each [5, 10])
+    s @?= [(5, [[normal]]), (15, [[spare, normal]])]
 
---testOneSpare =
---    runStateT (sequence [shot 5, shot 10]) [[]]
---    @?=
---    Just ([5, 15], [[spare, normal]])
+testSpareScore = do
+    s <- P.toListM $ score (each [5, 10, 5, 5, 5]) >-> P.map fst
+    s @?= [5, 15, 25, 35, 40]
 
---testSpareScore =
---    runStateT (sequence [shot 5, shot 10, shot 5, shot 5, shot 5]) [[]]
---    @?=
---    Just ([5, 15, 25, 35, 40], [[normal, normal, normal ], [spare, normal]])
-
---testLastFrameSpare =
---    runStateT (sequence [shot 5, shot 10, shot 5, shot 5]) [[strike], [strike], [strike], [strike]]
---    @?=
---    Just ([170, 200, 215, (215 + 5 + 5)], [[normal, normal, spare, normal], [strike],[strike], [strike], [strike]])
+testLastFrameSpare = do
+    s <- P.toListM (evalStateP [[strike], [strike], [strike], [strike]] (parseShot $ each [5, 10, 5, 5]) >-> P.map fst)
+    s @?= [170, 200, 215, (215 + 5 + 5)]
 
 testOverLongerLastFrame_1 =
     isLastFrameOver [strike, normal, normal]
@@ -85,18 +75,17 @@ tests = [
     testGroup "Normal"
         [ testCase "Update frames with 15 normal shots" testNormal
         , testCase "one normal shots on the last frames" testLastFrameNormal
-    --    --, testCase "Game should terminate" testGameOver
         ],
     testGroup "Strike"
-       [ testCase "Just one Strike" testOneStrike
-    --    , testCase "The 3 next shots are added to the score of one strike" testStrikeScore
-    --    , testCase "Last frame is special" testLastFrameStrike
-       ],
-    --, testGroup "Spare"
-    --    [ testCase "Just one Spare" testOneSpare
-    --    , testCase "The 2 next shots are added to the score of a spare" testSpareScore
-    --    , testCase "The 2 last shots are added to the score of the spare" testLastFrameSpare
-    --    ]
+        [ testCase "Just one Strike" testOneStrike
+        , testCase "The 3 next shots are added to the score of one strike" testStrikeScore
+        , testCase "Last frame is special" testLastFrameStrike
+        ],
+    testGroup "Spare"
+        [ testCase "Just one Spare" testOneSpare
+        , testCase "The 2 next shots are added to the score of a spare" testSpareScore
+        , testCase "The 2 last shots are added to the score of the spare" testLastFrameSpare
+        ],
     testGroup "LastFrame"
         [ testCase "We should allow 4 shots in this frame" testOverLongerLastFrame_1
         , testCase "We should allow only 3 shots in this frame" testOverLongerLastFrame_2
@@ -105,16 +94,3 @@ tests = [
         ]
      ]
 
-
---module Main (main)
---where
-
---import Afgame
---import Control.Monad.State
-
----- Let's shot
---shot :: Int -> State Board Int
---shot a = state $ updateBoard a
-
---main :: IO()
---main = print $ runStateT (sequence [shot 15, shot 15]) [[]]
