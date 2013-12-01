@@ -11,8 +11,8 @@ executable afgame
   build-depends:  base >= 4,
                   mtl,
                   containers,
-                  pipes > 4.0,
-                  pipes-parse > 2.0
+                  pipes > 4.0
+
   ghc-options:     -Wall
 
 test-suite tests
