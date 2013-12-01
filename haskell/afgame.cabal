@@ -13,7 +13,7 @@ executable afgame
                   containers,
                   pipes > 4.0
 
-  ghc-options:     -Wall
+  ghc-options:     -fno-warn-missing-signatures 
 
 test-suite tests
   default-language:  Haskell2010
@@ -26,7 +26,6 @@ test-suite tests
                      pipes > 4.0,
                      test-framework,
                      test-framework-hunit,
-                     test-framework-quickcheck2,
                      HUnit
   other-modules:  Afgame
-  ghc-options:       -Wall
+  ghc-options:       -fno-warn-missing-signatures
