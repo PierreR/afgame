@@ -12,7 +12,7 @@
 module Afgame (score, prompt, emptyBoard, Hit(..), Board, isLastFrameOver, parseShot)
 where
 
-import Control.Applicative
+import Control.Applicative((<$>), (<*>))
 import Control.Arrow ((>>>))
 import qualified Control.Monad.State.Strict as S
 import qualified Data.Sequence as Seq
