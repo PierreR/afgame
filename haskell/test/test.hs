@@ -1,9 +1,6 @@
 module Main
 where
 
-import Pipes
-import Pipes.Lift
-import qualified Pipes.Prelude as P
 import Afgame
 import Test.Framework (testGroup, defaultMain)
 import Test.Framework.Providers.HUnit

@@ -9,16 +9,12 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (score, prompt, emptyBoard, Hit(..), Board, isLastFrameOver, parseShot)
+module Afgame (score, emptyBoard, Hit(..), Board, isLastFrameOver, isGameOver)
 where
 
 import Control.Applicative((<$>), (<*>))
 import Control.Arrow ((>>>))
-import qualified Control.Monad.State.Strict as S
 import qualified Data.Sequence as Seq
-import Pipes
-import Pipes.Lift(evalStateP)
-import qualified Pipes.Prelude as P
 
 -------------------------------------------------------------------------------
 --
@@ -78,12 +74,19 @@ emptyBoard = [[]]
 
 -- | Push the new shot in the current frame or
 --   if the current frame is over, create a new frame containing the sole new shot.
-updateGame :: Int -> Board -> Board
-updateGame _ [] = error "Board game should be initialized"
-updateGame a b@(currentFrame:xs) =
-    if isFrameOver b
-        then [new] : b -- create a new frame with one new shot
-        else (new : currentFrame) : xs -- push the new shot in the current frame
+updateGame :: Int -> Board -> Either String Board
+updateGame _ [] = Left "Board game should be initialized"
+updateGame a b@(currentFrame:xs)
+    | isShotBogus a = Left "Invalid shot"
+    | isGameOver b  = Left "This game is over"
+    | isFrameOver b = Right ([new] : b) -- create a new frame with one new shot
+    | otherwise     = do
+        let newFrame = new : currentFrame
+        -- Except for the last frame, the shot is bogus when it adds up for more than 15
+        if isLastFrame b || sumShots newFrame <= allPins
+            then Right (newFrame :xs)
+            else
+                Left "This shot creates an invalid frame. Shot ignored. Go on"
     where
         new = newShot a currentFrame
 
@@ -117,10 +120,6 @@ isLastFrameOver f
 isGameOver :: Board -> Bool
 isGameOver = (&&) <$> isLastFrame <*> isFrameOver
 
--- A normal frame is bogus if the shots add up for more than 15
-isFrameValid :: Board -> Bool
-isFrameValid = (||) <$> isLastFrame <*> (head >>> sumShots >>> (<= allPins))
-
 -- | Calculate the score of the updated board.
 -- First we flatten (concat) the board to remove frame information
 -- Then we calc each score chronological wise.
@@ -143,7 +142,6 @@ calcScore b =
                 accScore = acc + a -- sum the new score in the fold accumulator
                 after = drop (succ i) xs -- timewise, list of shots recorded after the current index
 
-
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
@@ -151,47 +149,9 @@ calcScore b =
 sumShots :: Frame -> Int
 sumShots = sum . map snd
 
-
---------------------------------------------------------------------------------
--- Pipes
---------------------------------------------------------------------------------
-
-prompt :: Producer' Int IO ()
-prompt =
-    liftIO (putStrLn "Let's start Booling ! Enter your shots.\n(enter 'q' to quit)")
-    >> P.stdinLn
-    >-> P.takeWhile (/= "q")
-    >-> checkInput
-
-
-checkInput :: Pipe String Int IO ()
-checkInput = for P.read $ \a ->
-    if isShotBogus a
-        then liftIO $ putStrLn "Bogus shot"
-        else yield a
-
-parseShot :: Producer Int IO () -> Producer (Int, Board) (S.StateT Board IO) ()
-parseShot = go
-    where
-        go p = do
-            b <- lift S.get
-            x <- liftIO $ next p
-            case x of
-                Right (a, p') -> do
-                    let score' = calcScore b'
-                        b' = updateGame a b
-                    if isFrameValid b'
-                        then do
-                            lift $ S.put b'
-                            yield (score', b')
-                        else
-                            liftIO $ putStrLn "This shot creates an invalid frame. Shot ignored. Go on"
-                    if isGameOver b'
-                        then liftIO $ putStrLn "Game Over"
-                        else go p'
-                Left ()       -> return ()
-
--- | Feed with Shot, `score` produce the tuple (Score, Board)
-score :: Producer Int IO () -> Producer (Int, Board) IO ()
-score p = evalStateP emptyBoard (parseShot p)
+-- | Given a shot and a board, either returns an error msg or produces (Score, Board)
+score :: Int -> Board -> Either String (Int, Board)
+score a b = do
+    b' <- updateGame a b
+    return (calcScore b', b')
 

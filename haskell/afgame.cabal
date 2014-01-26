@@ -11,21 +11,7 @@ executable afgame
   build-depends:  base >= 4,
                   mtl,
                   containers,
-                  pipes > 4.0
+                  safe
 
-  ghc-options:     -fno-warn-missing-signatures 
+  ghc-options:     -fno-warn-missing-signatures -O2 -ddump-rule-firings
 
-test-suite tests
-  default-language:  Haskell2010
-  type:              exitcode-stdio-1.0
-  main-is:           test.hs
-  hs-source-dirs:    src, test
-  build-depends:     base >= 4.0,
-                     mtl,
-                     containers,
-                     pipes > 4.0,
-                     test-framework,
-                     test-framework-hunit,
-                     HUnit
-  other-modules:  Afgame
-  ghc-options:       -fno-warn-missing-signatures
