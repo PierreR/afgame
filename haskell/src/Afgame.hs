@@ -12,16 +12,13 @@
 module Afgame (score, prompt, emptyBoard, Hit(..), Board, isLastFrameOver, parseShot)
 where
 
-import Pipes
-import Pipes.Lift
-import qualified Pipes.Prelude as P
-import qualified Control.Monad.State.Strict as S
-
 import Control.Applicative
-
 import Control.Arrow ((>>>))
-
+import qualified Control.Monad.State.Strict as S
 import qualified Data.Sequence as Seq
+import Pipes
+import Pipes.Lift(evalStateP)
+import qualified Pipes.Prelude as P
 
 -------------------------------------------------------------------------------
 --

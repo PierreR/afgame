@@ -20,23 +20,23 @@ main :: IO ()
 main = defaultMain tests
 
 testNormal = do
-    s <-  P.toListM $ score (each $ replicate 15 5) >-> P.map fst 
+    s <-  P.toListM $ score (each $ replicate 15 5) >-> P.map fst
     s @?= take 15 [5, 10 ..]
 
 testLastFrameNormal = do
-    s <-  P.toListM $ score (each $ [15, 15, 15, 15, 5]) >-> P.map fst 
+    s <-  P.toListM $ score (each $ [15, 15, 15, 15, 5]) >-> P.map fst
     s @?= [15,45,90,150,170]
 
-testOneStrike = 
-    P.toListM (score $ yield 15) >>= -- without the do notation; arguably less clear
-        (@?= [(15,[[strike]])])
+testOneStrike = do
+    s <- P.toListM (score $ yield 15)
+    s @?= [(15,[[strike]])]
 
 testStrikeScore = do
-    s <- last <$> P.toListM (score $ each [15, 5, 5, 5, 5]) 
+    s <- last <$> P.toListM (score $ each [15, 5, 5, 5, 5])
     s @?= (50,[[normal],[normal, normal, normal],[strike]])
 
 testLastFrameStrike = do
-    s <- P.toListM (evalStateP [[strike], [strike], [strike], [strike]] (parseShot $ each [15, 5, 5, 5]) >-> P.map fst)    
+    s <- P.toListM (evalStateP [[strike], [strike], [strike], [strike]] (parseShot $ each [15, 5, 5, 5]) >-> P.map fst)
     s @?= [210, 230, 245, 255]
 
 testOneSpare = do
