@@ -79,10 +79,16 @@ type Board = [Frame]
 emptyBoard :: Board
 emptyBoard = [[]]
 
-newBoard :: Int -> Board -> Board
-newBoard _ [] = error "Board game should be initialized"
-newBoard a b@(currentFrame:xs) = 
-    updateFrame a currentFrame b ++ xs
+-- | Push the new shot in the current frame or
+--   if the current frame is over, create a new frame containing the sole new shot.
+updateGame :: Int -> Board -> Board
+updateGame _ [] = error "Board game should be initialized"
+updateGame a b@(currentFrame:xs) =
+    if isFrameOver b
+        then [new] : b -- create a new frame with one new shot
+        else (new : currentFrame) : xs -- push the new shot in the current frame
+    where
+        new = newShot a currentFrame
 
 -- | The forth frame is always the last frame.
 -- PS: '(>>>)' is defined as 'flip (.)' for '(->)'
@@ -117,16 +123,6 @@ isGameOver = (&&) <$> isLastFrame <*> isFrameOver
 -- A normal frame is bogus if the shots add up for more than 15
 isFrameValid :: Board -> Bool
 isFrameValid = (||) <$> isLastFrame <*> (head >>> sumShots >>> (<= allPins))
-
--- | From the current frame, either
---      - push the new shot in the current frame
---   or - create a new frame containing the sole new shot.
--- Return as a list of one or two frame(s).
-updateFrame :: Int -> Frame -> Board -> [Frame]
-updateFrame a f b
-    | isFrameOver b   = [[new], f]  -- create a new frame with one new shot
-    | otherwise       = [ new : f]  -- push the new shot in the current frame
-    where new = newShot a f
 
 -- | Calculate the score of the updated board.
 -- First we flatten (concat) the board to remove frame information
@@ -172,8 +168,8 @@ prompt =
 
 
 checkInput :: Pipe String Int IO ()
-checkInput = for P.read $ \a -> 
-    if isShotBogus a 
+checkInput = for P.read $ \a ->
+    if isShotBogus a
         then liftIO $ putStrLn "Bogus shot"
         else yield a
 
@@ -186,7 +182,7 @@ parseShot = go
             case x of
                 Right (a, p') -> do
                     let score' = calcScore b'
-                        b' = newBoard a b
+                        b' = updateGame a b
                     if isFrameValid b'
                         then do
                             lift $ S.put b'
@@ -198,7 +194,7 @@ parseShot = go
                         else go p'
                 Left ()       -> return ()
 
--- | Feed with Shot, `score` produce the tuple (Score, Board)      
+-- | Feed with Shot, `score` produce the tuple (Score, Board)
 score :: Producer Int IO () -> Producer (Int, Board) IO ()
 score p = evalStateP emptyBoard (parseShot p)
 
