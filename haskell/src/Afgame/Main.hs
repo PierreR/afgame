@@ -1,4 +1,4 @@
-module Main
+module Afgame.Main
 
 where
 
