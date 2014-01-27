@@ -13,7 +13,7 @@ executable afgame
                   containers,
                   safe
 
-  ghc-options:     -fno-warn-missing-signatures -O2 -ddump-rule-firings
+  ghc-options:     -fno-warn-missing-signatures
 
 test-suite tests
   default-language:  Haskell2010
@@ -24,7 +24,6 @@ test-suite tests
                      mtl,
                      containers,
                      HUnit,
-                     safe,
                      test-framework,
                      test-framework-hunit
   other-modules:  Afgame
