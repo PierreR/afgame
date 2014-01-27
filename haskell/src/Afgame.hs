@@ -9,11 +9,12 @@
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
 
-module Afgame (score, emptyBoard, Hit(..), Board, isLastFrameOver, isGameOver)
+module Afgame (score, scores, emptyBoard, Hit(..), Board, isLastFrameOver, isGameOver)
 where
 
 import Control.Applicative((<$>), (<*>))
 import Control.Arrow ((>>>))
+import qualified Control.Monad.State.Strict as S
 import qualified Data.Sequence as Seq
 
 -------------------------------------------------------------------------------
@@ -86,7 +87,7 @@ updateGame a b@(currentFrame:xs)
         if isLastFrame b || sumShots newFrame <= allPins
             then Right (newFrame :xs)
             else
-                Left "This shot creates an invalid frame. Shot ignored. Go on"
+                Left "This shot creates an invalid frame"
     where
         new = newShot a currentFrame
 
@@ -150,8 +151,15 @@ sumShots :: Frame -> Int
 sumShots = sum . map snd
 
 -- | Given a shot and a board, either returns an error msg or produces (Score, Board)
-score :: Int -> Board -> Either String (Int, Board)
-score a b = do
-    b' <- updateGame a b
-    return (calcScore b', b')
+score' :: Int -> S.StateT Board (Either String) Int
+score' a = do
+    b  <- S.get
+    b' <- S.lift $ updateGame a b
+    S.put b'
+    return (calcScore b')
 
+score :: Int -> Board -> Either String (Int, Board)
+score a b = S.runStateT (score' a) b
+
+scores :: [Int] -> Board -> Either String ([Int], Board)
+scores as b = mapM score' as `S.runStateT` b
