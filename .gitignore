@@ -1,6 +1,7 @@
 *.pyc
 dist
-cabal-dev
+.cabal-sandbox
+cabal.sandbox*
 *.6
 *.out
 _*

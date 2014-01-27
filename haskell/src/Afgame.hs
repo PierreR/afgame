@@ -151,15 +151,18 @@ sumShots :: Frame -> Int
 sumShots = sum . map snd
 
 -- | Given a shot and a board, either returns an error msg or produces (Score, Board)
+score :: Int -> Board -> Either String (Int, Board)
+score a b = do
+    b' <- updateGame a b
+    return (calcScore b', b')
+-- or score a b = S.runStateT (score' a) b
+
 score' :: Int -> S.StateT Board (Either String) Int
 score' a = do
     b  <- S.get
     b' <- S.lift $ updateGame a b
     S.put b'
     return (calcScore b')
-
-score :: Int -> Board -> Either String (Int, Board)
-score a b = S.runStateT (score' a) b
 
 scores :: [Int] -> Board -> Either String ([Int], Board)
 scores as b = mapM score' as `S.runStateT` b
