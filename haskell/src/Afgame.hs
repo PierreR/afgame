@@ -12,7 +12,6 @@
 module Afgame (score, scores, emptyBoard, Hit(..), Board, isLastFrameOver, isGameOver)
 where
 
-import Control.Applicative((<$>), (<*>))
 import Control.Arrow ((>>>))
 import qualified Control.Monad.State.Strict as S
 import qualified Data.Sequence as Seq
@@ -119,7 +118,7 @@ isLastFrameOver f
 
 -- | The game is over at the last frame when the frame is over
 isGameOver :: Board -> Bool
-isGameOver = (&&) <$> isLastFrame <*> isFrameOver
+isGameOver b = isLastFrame b && isFrameOver b
 
 -- | Calculate the score of the updated board.
 -- First we flatten (concat) the board to remove frame information
