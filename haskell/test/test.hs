@@ -2,6 +2,7 @@ module Main
 where
 
 import Afgame
+import Afgame.Internal
 import Test.Framework (testGroup, defaultMain)
 import Test.Framework.Providers.HUnit
 import Control.Applicative

@@ -3,8 +3,7 @@ module Afgame.Pipes
 where
 
 import Afgame
-import qualified Control.Monad.State.Strict as S
-import Control.Monad.Trans.Either
+import Afgame.Internal
 import Pipes
 import qualified Pipes.Prelude as P
 

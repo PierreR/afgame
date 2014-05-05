@@ -1,18 +1,22 @@
-
+{-# LANGUAGE ScopedTypeVariables #-}
 ------------------------------------------------------------------------------
 -- | This module calculates the score of the African game.
 -- See <https://github.com/PierreR/afgame/README.md> for the specifications.
--- It uses a state monad to hold all 'current scores' (the value) together with
+-- `scores` uses a state monad to hold all 'current scores' (the value) together with
 -- the status of the game (called the board).
 -- One important note :
 -- According to the definition of the game, a strike or spare earns the point of
 -- the next three or two shots. This implementation just adds the "after" shots
 -- (the pins knocked down), not the real score obtained by these shots.
-
-module Afgame (score, scores, emptyBoard, Hit(..), Board, isLastFrameOver, isGameOver)
+-- The Internal module contains the model and non-exposed utilities.
+module Afgame (
+      score
+    , scores
+    , emptyBoard
+)
 where
 
-import Control.Arrow ((>>>))
+import Afgame.Internal
 import qualified Control.Monad.State.Strict as S
 import qualified Data.Sequence as Seq
 
@@ -22,31 +26,6 @@ import qualified Data.Sequence as Seq
 -- shots. Consequently there is not point to calculate the score while we update
 -- the board and this implementation separate the two concerns.
 ------------------------------------------------------------------------------
-
--- | A shot is defined by a Hit together with the number of pins knocked down.
-type Shot =  (Hit, Int)
-
--- | A shot can be a Strike, a Spare or just Normal.
-data Hit = Strike | Spare | Normal deriving (Eq,Show)
-
--- | Shots happens within Frames
--- A frame is a list of shots.
-type Frame = [Shot]
-
--- | There are 15 bowling pins to knock down
-allPins :: Int
-allPins = 15
-
--- | the game breaks down into 5 frames
-maxFrame :: Int
-maxFrame = 5
-
--- | Within a Frame, from the number of pins down, construct a 'Shot'.
-newShot :: Int -> Frame -> Shot
-newShot a  f
-    | isStrike a   = (Strike, allPins)
-    | isSpare a f  = (Spare, a)
-    | otherwise    = (Normal, a)
 
 -- | Strike when all the pins are knocked down
 isStrike :: Int -> Bool
@@ -66,9 +45,6 @@ isSpare a f =
 isShotBogus :: Int -> Bool
 isShotBogus a = a > allPins
 
--- | A board composed of frames hold the whole game state.
-type Board = [Frame]
-
 emptyBoard :: Board
 emptyBoard = [[]]
 
@@ -79,46 +55,21 @@ updateGame _ [] = Left "Board game should be initialized"
 updateGame a b@(currentFrame:xs)
     | isShotBogus a = Left "Invalid shot"
     | isGameOver b  = Left "This game is over"
-    | isFrameOver b = Right ([new] : b) -- create a new frame with one new shot
+    | isFrameOver b = Right ([newShot] : b) -- create a new frame with one new shot
     | otherwise     = do
-        let newFrame = new : currentFrame
+        let newFrame = newShot : currentFrame
         -- Except for the last frame, the shot is bogus when it adds up for more than 15
         if isLastFrame b || sumShots newFrame <= allPins
             then Right (newFrame :xs)
             else
                 Left "This shot creates an invalid frame"
     where
-        new = newShot a currentFrame
+        -- | Within a Frame, from the number of pins down, construct a 'Shot'.
+        newShot
+            | isStrike a   = (Strike, allPins)
+            | isSpare a currentFrame  = (Spare, a)
+            | otherwise    = (Normal, a)
 
--- | The forth frame is always the last frame.
--- PS: '(>>>)' is defined as 'flip (.)' for '(->)'
-isLastFrame :: Board -> Bool
-isLastFrame = length  >>> (>= maxFrame)
-
--- | A frame is composed of maximum 3 shots and is over whenever all pins are down.
--- The rule is different for the last frame.
-isFrameOver :: Board -> Bool
-isFrameOver b
-    | isLastFrame b = isLastFrameOver f
-    | otherwise     = sumShots f >= allPins || length f >= 3
-    where f = head b -- take the current frame
-
--- | The last frame is not over in case of a strike or spare
--- It is composed of 3 to 4 shots depending on the need to account for strike/spare.
-isLastFrameOver :: Frame -> Bool
-isLastFrameOver f
-    | isLonger   = length f >= 4
-    | otherwise  = length f >= 3
-    -- To have a longer frame:
-    -- one strike within the frame is enough
-    -- one spare is usually enough except if it is at the first position
-    where isLonger  =
-            Seq.foldrWithIndex isSpecial False (Seq.fromList f)
-            where isSpecial i (h,_) acc = acc || (h == Strike || (i /= 0 && h == Spare))
-
--- | The game is over at the last frame when the frame is over
-isGameOver :: Board -> Bool
-isGameOver b = isLastFrame b && isFrameOver b
 
 -- | Calculate the score of the updated board.
 -- First we flatten (concat) the board to remove frame information
@@ -142,26 +93,15 @@ calcScore b =
                 accScore = acc + a -- sum the new score in the fold accumulator
                 after = drop (succ i) xs -- timewise, list of shots recorded after the current index
 
---------------------------------------------------------------------------------
--- Utilities
---------------------------------------------------------------------------------
-
-sumShots :: Frame -> Int
-sumShots = sum . map snd
-
 -- | Given a shot and a board, either returns an error msg or produces (Score, Board)
 score :: Int -> Board -> Either String (Int, Board)
 score a b = do
     b' <- updateGame a b
     return (calcScore b', b')
--- or score a b = S.runStateT (score' a) b
-
-score' :: Int -> S.StateT Board (Either String) Int
-score' a = do
-    b  <- S.get
-    b' <- S.lift $ updateGame a b
-    S.put b'
-    return (calcScore b')
 
 scores :: [Int] -> Board -> Either String ([Int], Board)
-scores as b = mapM score' as `S.runStateT` b
+scores as b = mapM _score as `S.runStateT` b
+    where
+        -- use StateT to keep track of the board while recording the shots
+        _score :: Int -> S.StateT Board (Either String) Int
+        _score a = S.StateT $ \s -> score a s

@@ -13,7 +13,7 @@ library
                   mtl,
                   pipes >= 4.1 && < 4.2,
                   safe
-  exposed-modules: Afgame, Afgame.Pipes
+  exposed-modules: Afgame, Afgame.Pipes, Afgame.Internal
   ghc-options:     -fno-warn-missing-signatures
 
 
