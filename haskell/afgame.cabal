@@ -12,8 +12,13 @@ library
                   either,
                   mtl,
                   pipes >= 4.1 && < 4.2,
-                  safe
-  exposed-modules: Afgame, Afgame.Pipes, Afgame.Internal
+                  safe,
+                  QuickCheck >= 2.7.3,
+                  -- random >= 1.0.1.1,
+                  mvc >= 1.0.0,
+                  lens-family-core >= 1.0.0
+                 
+  exposed-modules: Afgame, Afgame.Pipes, Afgame.Internal, Afgame.MVC
   ghc-options:     -fno-warn-missing-signatures
 
 
