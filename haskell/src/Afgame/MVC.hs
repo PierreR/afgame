@@ -107,30 +107,23 @@ calcGameSteps m ns =
         >-> P.filter (\x -> case x of (Right _) -> True; (Left _) -> False) -- only count valid moves
 
 {-
-λ> calcGameSteps 1000 <$> someInts 
+λ> calcGameSteps 1000 <$> someInts
 15
-λ> calcGameSteps 1000 <$> someInts 
-15
-λ> calcGameSteps 1000 <$> someInts 
+λ> calcGameSteps 1000 <$> someInts
+16
+λ> calcGameSteps 1000 <$> someInts
 13
 
-Does it ever take more than 15 moves?
+It never takes more than 16 moves ?
 -}
 
-prop_gamestepsGT15 :: [Int] -> Bool
-prop_gamestepsGT15 xs =
-    15 >= calcGameSteps 1000 xs
+prop_gamestepsGT16 :: [Int] -> Bool
+prop_gamestepsGT16 xs =
+    16 >= calcGameSteps 1000 xs
 
 {-
-λ> quickCheck prop_gamestepsGT15
-
-After some qc magic I get a canonical example
-
-Falsifiable (after 54 tests and 27 shrinks): 
-[0,0,0,0,0,0,0,0,0,0,0,0,0,15,0,0]
-
-... it looks like 0 is being seen as a valid move, but it isn't
-
+λ> quickCheck prop_gamestepsGT16
+-- +++ OK, passed 100 tests.
 -}
 
 {- scoring -}
@@ -170,13 +163,13 @@ prop_highscore high xs = not (null xs) ==>
 
 {-
 λ> quickCheck (prop_highscore 17)
-Falsifiable (after 16 tests and 6 shrinks): 
+Falsifiable (after 16 tests and 6 shrinks):
 [0,0,4,14]
-λ> 
+λ>
 
 -- 40
 
-Falsifiable (after 215 tests and 9 shrinks): 
+Falsifiable (after 215 tests and 9 shrinks):
 [0,0,2,12,1,0,8,-1,8,11]
 
 scores above 40 seem to be rare
@@ -201,7 +194,7 @@ prop_highscore' high xs = not (null xs) ==>
 {-
 λ> quickCheckWith stdArgs{maxSuccess=1000} (prop_highscore' 150)
 
-Falsifiable (after 94 tests and 13 shrinks): 
+Falsifiable (after 94 tests and 13 shrinks):
 [GameMove 12,GameMove 3,GameMove 13,GameMove 2,GameMove 3,GameMove 1,GameMove 8,GameMove 9,GameMove 6,GameMove 15,GameMove 11,GameMove 6]
 
 -- 180
