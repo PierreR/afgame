@@ -43,7 +43,7 @@ isSpare a f =
         && previousHit /= Spare
 
 isShotBogus :: Int -> Bool
-isShotBogus a = a > allPins
+isShotBogus a = a > allPins || a < 0
 
 emptyBoard :: Board
 emptyBoard = [[]]
