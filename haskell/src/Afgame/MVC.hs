@@ -31,14 +31,14 @@ Either is hijacked with Left for messages and Right for scores
 viewMessage :: View String
 viewMessage = asSink (putStrLn . ("message: " ++))
 
-viewScore :: View (Int,Board)
+viewScore :: View ScoreBoard
 viewScore = asSink (putStrLn . ("score: " ++) . show)
 
-view :: View (Either String (Int, Board))
+view :: View (Either String ScoreBoard)
 view = handles _Left viewMessage <> handles _Right viewScore
 
 -- | matching the type needed for runMVC
-vc :: Managed (View (Either String (Int, Board)), Controller String)
+vc :: Managed (View (Either String ScoreBoard), Controller String)
 vc = do
     c <- controller
     return (view, c)
@@ -66,24 +66,25 @@ It would be much better code if the type signature was Pipe Int (Either String (
 
 -}
 
-pipeScore :: (Monad m) => Pipe (Either String Int) (Either String (Int,Board)) (S.StateT Board m) ()
-pipeScore = for cat $ \x -> case x of
-    Left s -> yield (Left s)
-    Right n -> do
-        b <- lift S.get
-        case score n b of
-            Right (a', b') -> do
-                lift $ S.put b'
-                yield (Right (a',b'))
-                if isGameOver b'
-                    then yield (Left "Game over. Bye. See you next time")
-                    else pipeScore
-            Left msg -> do
-                yield (Left msg)
-                pipeScore
+pipeScore :: (Monad m) => Board -> Pipe (Either String Int) (Either String ScoreBoard) m ()
+pipeScore =  go
+    where
+        go b =  do
+            for cat $ \x -> case x of
+                Left s -> yield (Left s)
+                Right n -> do
+                    case score n b of
+                        Right c@(Current (_, b')) -> do
+                            yield (Right c)
+                            go b'
+                        Right (Done s) ->
+                            yield $ Right (Done s)
+                        Left msg -> do
+                            yield (Left msg)
+                            go b
 
-model :: Model Board String (Either String (Int, Board))
-model = asPipe (pipeQuit >-> pipeRead >-> pipeScore)
+model :: Model Board String (Either String ScoreBoard)
+model = asPipe (pipeQuit >-> pipeRead >-> pipeScore emptyBoard)
 
 
 {- modelling pure code
@@ -98,13 +99,13 @@ someInts = generate (infiniteList :: Gen [Int])
 -- how many steps does a game take?
 calcGameSteps :: Int -> [Int] -> Int
 calcGameSteps m ns =
+    -- runIdentity can be removed if you pick the State monad in place of StateT
     runIdentity $ flip S.evalStateT emptyBoard $ P.length $
         each ns >->
         P.map Right >->
-        pipeScore >-> -- the pure scoring element of the model
+        pipeScore emptyBoard >-> -- the pure scoring element of the model
         P.take m >->  -- just in case it's not turing complete
-        P.takeWhile (/= Left "Game over. Bye. See you next time") -- the signal that the game has finished
-        >-> P.filter (\x -> case x of (Right _) -> True; (Left _) -> False) -- only count valid moves
+        P.filter (\x -> case x of (Right _) -> True; (Left _) -> False) -- only count valid moves
 
 {-
 λ> calcGameSteps 1000 <$> someInts
@@ -127,27 +128,24 @@ prop_gamestepsGT16 xs =
 -}
 
 {- scoring -}
-calcFinalScore :: Int -> [Int] -> Maybe Int
-calcFinalScore m ns =
+calcFinalScore ::  [Int] -> Maybe Int
+calcFinalScore ns =
     runIdentity $ flip S.evalStateT emptyBoard $ P.last $
         each ns >->
         P.map Right >->
-        pipeScore >->
-        P.take m >->
-        P.takeWhile (/= Left "Game over. Bye. See you next time") >->
+        pipeScore emptyBoard >->
         getScore
       where
         getScore = do
             a <- await
             case a of
-                Left _ -> getScore
-                Right (sc,_) -> do
-                    yield sc
-                    getScore
+                Right (Done s) -> yield s
+                _ -> getScore
+
 
 prop_alwaysscore :: [Int] -> Property
 prop_alwaysscore xs = not (null xs) ==>
-    Nothing /= calcFinalScore 1000 xs
+    Nothing /= calcFinalScore xs
 
 {-
 λ> quickCheck prop_alwaysscore
@@ -156,7 +154,7 @@ prop_alwaysscore xs = not (null xs) ==>
 
 prop_highscore :: Int -> [Int] -> Property
 prop_highscore high xs = not (null xs) ==>
-    let s = calcFinalScore 1000 xs in
+    let s = calcFinalScore xs in
     case s of
         Nothing -> True
         Just x -> high >= x
@@ -186,7 +184,7 @@ instance Arbitrary GameMove where
 
 prop_highscore' :: Int -> [GameMove] -> Property
 prop_highscore' high xs = not (null xs) ==>
-    let s = calcFinalScore 1000 (map (\(GameMove x) -> x) xs) in
+    let s = calcFinalScore (map (\(GameMove x) -> x) xs) in
     case s of
         Nothing -> True
         Just x -> high >= x

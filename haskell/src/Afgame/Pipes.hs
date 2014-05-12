@@ -5,6 +5,7 @@ where
 import Afgame
 import Afgame.Internal
 import Pipes
+import Text.Printf (printf)
 import qualified Pipes.Prelude as P
 
 prompt :: Producer' Int IO ()
@@ -20,11 +21,10 @@ score' = go
         go b = do
             a <- await
             case score a b of
-                Right (a', b') -> do
+                Right (Current (a', b')) -> do
                     yield (a', b')
-                    if isGameOver b'
-                        then liftIO $ putStrLn "Game over. Bye. See you next time"
-                        else go b'
+                    go b'
+                Right (Done s) -> liftIO $ printf "Game over. Your final score is %s. See you next time. Bye" s
                 Left msg -> do
                     liftIO $ putStrLn msg
                     go b

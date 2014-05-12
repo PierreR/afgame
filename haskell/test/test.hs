@@ -17,35 +17,33 @@ main :: IO ()
 main = defaultMain tests
 
 testNormal :: IO()
-testNormal = do
-    let s = fst <$> scores (replicate 15 5) emptyBoard
-    s @?= Right (take 15 [5, 10 ..])
+testNormal = scores (replicate 15 5) emptyBoard @?= Right (Done 75)
 
 testLastFrameNormal = do
-    let s = fst <$> scores [15, 15, 15, 15, 5] emptyBoard
-    s @?= Right [15,45,90,150,170]
+    let s = scores [15, 15, 15, 15, 5] emptyBoard
+    s @?= Right (Current (170,[[(Normal,5)],[(Strike,15)],[(Strike,15)],[(Strike,15)],[(Strike,15)]]))
 
 testOneStrike = do
-    score 15 emptyBoard @?= Right (15,[[strike]])
+    score 15 emptyBoard @?= Right (Current (15,[[strike]]))
 
 testStrikeScore = do
     let s = scores [15, 5, 5, 5, 5] emptyBoard
-    s @?= Right ([15,25,35,45,50],[[normal],[normal, normal, normal],[strike]])
+    s @?= Right (Current (50,[[(Normal,5)],[(Normal,5),(Normal,5),(Normal,5)],[(Strike,15)]]))
 
 testLastFrameStrike = do
-    let s = fst <$> scores [15, 5, 5, 5] [[strike], [strike], [strike], [strike]]
-    s @?= Right [210, 230, 245, 255]
+    let s = scores [15, 5, 5, 5] [[strike], [strike], [strike], [strike]]
+    s @?= Right (Done 255)
 
 testOneSpare = do
-    (scores) [5, 10] emptyBoard @?= Right ([5,15], [[spare, normal]])
+    scores [5, 10] emptyBoard @?= Right (Current (15, [[spare, normal]]))
 
 testSpareScore = do
-    let s = fst <$> scores [5, 10, 5, 5, 5] emptyBoard
-    s @?= Right [5, 15, 25, 35, 40]
+    let s = scores [5, 10, 5, 5, 5] emptyBoard
+    s @?= Right (Current (40,[[(Normal,5),(Normal,5),(Normal,5)],[(Spare,10),(Normal,5)]]))
 
 testLastFrameSpare = do
-    let s = fst <$> scores [5, 10, 5, 5] [[strike], [strike], [strike], [strike]]
-    s @?= Right [170, 200, 215, (215 + 5 + 5)]
+    let s = scores [5, 10, 5, 5] [[strike], [strike], [strike], [strike]]
+    s @?= Right (Done 225)
 
 testOverLongerLastFrame_1 =
     isLastFrameOver [strike, normal, normal]

@@ -10,14 +10,14 @@
 -- (the pins knocked down), not the real score obtained by these shots.
 -- The Internal module contains the model and non-exposed utilities.
 module Afgame (
-      score
+      ScoreBoard(..)
+    , score
     , scores
     , emptyBoard
 )
 where
 
 import Afgame.Internal
-import qualified Control.Monad.State.Strict as S
 import qualified Data.Sequence as Seq
 
 -------------------------------------------------------------------------------
@@ -48,13 +48,15 @@ isShotBogus a = a > allPins || a < 0
 emptyBoard :: Board
 emptyBoard = [[]]
 
+data ScoreBoard = Done Int | Current (Int, Board) deriving (Show, Eq)
+
 -- | Push the new shot in the current frame or
 --   if the current frame is over, create a new frame containing the sole new shot.
 updateGame :: Int -> Board -> Either String Board
 updateGame _ [] = Left "Board game should be initialized"
 updateGame a b@(currentFrame:xs)
     | isShotBogus a = Left "Invalid shot"
-    | isGameOver b  = Left "This game is over"
+    | isGameOver b  = Left "This game is over !"
     | isFrameOver b = Right ([newShot] : b) -- create a new frame with one new shot
     | otherwise     = do
         let newFrame = newShot : currentFrame
@@ -62,7 +64,7 @@ updateGame a b@(currentFrame:xs)
         if isLastFrame b || sumShots newFrame <= allPins
             then Right (newFrame :xs)
             else
-                Left "This shot creates an invalid frame"
+                Left  "This shot creates an invalid frame"
     where
         -- | Within a Frame, from the number of pins down, construct a 'Shot'.
         newShot
@@ -94,14 +96,21 @@ calcScore b =
                 after = drop (succ i) xs -- timewise, list of shots recorded after the current index
 
 -- | Given a shot and a board, either returns an error msg or produces (Score, Board)
-score :: Int -> Board -> Either String (Int, Board)
+score :: Int -> Board -> Either String ScoreBoard
 score a b = do
     b' <- updateGame a b
-    return (calcScore b', b')
+    let s = calcScore b'
+    if isGameOver b'
+        then return $ Done s
+        else return $ Current (s, b')
 
-scores :: [Int] -> Board -> Either String ([Int], Board)
-scores as b = mapM _score as `S.runStateT` b
-    where
-        -- use StateT to keep track of the board while recording the shots
-        _score :: Int -> S.StateT Board (Either String) Int
-        _score a = S.StateT $ \s -> score a s
+scores :: [Int] -> Board -> Either String ScoreBoard
+scores (a:as) b = do
+   case score a b of
+      Right c@(Current (_, b')) -> do
+          if null as
+          then return c
+          else scores as b'
+      Right (Done s) -> Right $ Done s
+      Left s -> Left s
+scores [] _ = Left "Empty input. Try again"
