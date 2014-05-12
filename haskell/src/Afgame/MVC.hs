@@ -70,7 +70,8 @@ pipeScore :: (Monad m) => Board -> Pipe (Either String Int) (Either String Score
 pipeScore =  go
     where
         go b =  do
-            for cat $ \x -> case x of
+            x <- await
+            case x of
                 Left s -> yield (Left s)
                 Right n -> do
                     case score n b of
