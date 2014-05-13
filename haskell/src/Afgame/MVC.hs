@@ -13,6 +13,7 @@ import           MVC
 import qualified MVC.Prelude as MVC
 import qualified Pipes.Prelude as P
 import           Test.QuickCheck
+import Text.Printf(printf)
 
 main :: IO Board
 main =  runMVC emptyBoard model vc
@@ -32,7 +33,10 @@ viewMessage :: View String
 viewMessage = asSink (putStrLn . ("message: " ++))
 
 viewScore :: View ScoreBoard
-viewScore = asSink (putStrLn . ("score: " ++) . show)
+viewScore = asSink
+    (\sb -> case sb of
+        Done s     -> printf "Game over. Your final score is %u. See you next time.\n" s
+        Current cs -> printf "Current score is %s. Enter your next shot\n" $ show cs)
 
 view :: View (Either String ScoreBoard)
 view = handles _Left viewMessage <> handles _Right viewScore
@@ -61,30 +65,29 @@ pipeRead = for cat $ \str -> case reads str of
     [(a,"")] -> yield $ Right a
     _ -> yield $ Left "Enter a number, or 'q' to quit"
 
-{-
-It would be much better code if the type signature was Pipe Int (Either String (Int,Board) (and pretty much identical with the original score pipe) rather than including the Left messages from the previous step.  A ListT appraoch might help here.
-
--}
+untilDone :: Monad m => Pipe (Either String ScoreBoard) (Either String ScoreBoard) m ()
+untilDone = do
+    x <- await
+    yield x
+    case x of
+        Right (Done _) -> return ()
+        _              -> untilDone
 
 pipeScore :: (Monad m) => Board -> Pipe (Either String Int) (Either String ScoreBoard) m ()
-pipeScore =  go
-    where
-        go b =  do
-            for cat $ \x -> case x of
-                Left s -> yield (Left s)
-                Right n -> do
-                    case score n b of
-                        Right c@(Current (_, b')) -> do
-                            yield (Right c)
-                            go b'
-                        Right (Done s) ->
-                            yield $ Right (Done s)
-                        Left msg -> do
-                            yield (Left msg)
-                            go b
+pipeScore = S.evalStateT $ forever $ do
+    x <- lift $ await
+    case x of
+        Left  s -> lift $ yield (Left s)
+        Right n -> do
+            b <- S.get
+            let y = score n b
+            lift $ yield y
+            case y of
+                Right (Current (_, b')) -> S.put b'
+                _                       -> return ()
 
 model :: Model Board String (Either String ScoreBoard)
-model = asPipe (pipeQuit >-> pipeRead >-> pipeScore emptyBoard)
+model = asPipe (pipeQuit >-> pipeRead >-> pipeScore emptyBoard >-> untilDone)
 
 
 {- modelling pure code
@@ -103,7 +106,7 @@ calcGameSteps m ns =
     runIdentity $ flip S.evalStateT emptyBoard $ P.length $
         each ns >->
         P.map Right >->
-        pipeScore emptyBoard >-> -- the pure scoring element of the model
+        pipeScore emptyBoard >-> untilDone >-> -- the pure scoring element of the model
         P.take m >->  -- just in case it's not turing complete
         P.filter (\x -> case x of (Right _) -> True; (Left _) -> False) -- only count valid moves
 
@@ -133,7 +136,7 @@ calcFinalScore ns =
     runIdentity $ flip S.evalStateT emptyBoard $ P.last $
         each ns >->
         P.map Right >->
-        pipeScore emptyBoard >->
+        pipeScore emptyBoard >-> untilDone >->
         getScore
       where
         getScore = do

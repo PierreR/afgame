@@ -55,7 +55,7 @@ data ScoreBoard = Done Int | Current (Int, Board) deriving (Show, Eq)
 updateGame :: Int -> Board -> Either String Board
 updateGame _ [] = Left "Board game should be initialized"
 updateGame a b@(currentFrame:xs)
-    | isShotBogus a = Left "Invalid shot"
+    | isShotBogus a = Left "Invalid shot. Try again."
     | isGameOver b  = Left "This game is over !"
     | isFrameOver b = Right ([newShot] : b) -- create a new frame with one new shot
     | otherwise     = do
@@ -64,7 +64,7 @@ updateGame a b@(currentFrame:xs)
         if isLastFrame b || sumShots newFrame <= allPins
             then Right (newFrame :xs)
             else
-                Left  "This shot creates an invalid frame"
+                Left  "This shot creates an invalid frame. Try again."
     where
         -- | Within a Frame, from the number of pins down, construct a 'Shot'.
         newShot
