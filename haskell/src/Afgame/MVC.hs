@@ -80,9 +80,9 @@ pipeScore = S.evalStateT $ forever $ do
         Left  s -> lift $ yield (Left s)
         Right n -> do
             b <- S.get
-            let y = score n b
-            lift $ yield y
-            case y of
+            let sb = score n b
+            lift $ yield sb
+            case sb of
                 Right (Current (_, b')) -> S.put b'
                 _                       -> return ()
 
