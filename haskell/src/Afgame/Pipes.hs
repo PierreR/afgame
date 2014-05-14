@@ -24,7 +24,7 @@ score' = go
                 Right (Current (a', b')) -> do
                     yield (a', b')
                     go b'
-                Right (Done s) -> liftIO $ printf "Game over. Your final score is %s. See you next time. Bye" s
+                Right (Done s) -> liftIO $ printf "Game over. Your final score is %u. See you next time. Bye\n" s
                 Left msg -> do
                     liftIO $ putStrLn msg
                     go b
