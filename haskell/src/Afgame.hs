@@ -85,7 +85,7 @@ calcScore b =
         indexedShots = Seq.fromList allShots
     in Seq.foldlWithIndex (calcShot allShots) 0 indexedShots
     where
-        calcShot :: [Shot] -> Int -> Int -> (Hit, Int) -> Int
+        calcShot :: [Shot] -> Int -> Int -> Shot -> Int
         calcShot xs acc i (h,x)
             | h == Strike = accScore + sumShots (take 3 after) -- Strike earns the score of the 3 next shots
             | h == Spare  = accScore + sumShots (take 2 after) -- Spare earns the score of the 2 next shots
@@ -105,7 +105,7 @@ score x b = do
         else return $ Current (s, b')
 
 scores :: [Int] -> Board -> Either String ScoreBoard
-scores (x:xs) b = 
+scores (x:xs) b =
    case score x b of
       Right c@(Current (_, b')) ->
           if null xs

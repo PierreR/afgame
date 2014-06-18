@@ -1,16 +1,16 @@
 module Afgame.Internal (
       allPins
-	, Board
-	, Frame
-	, Hit(..)
-	, isFrameOver
-	, isLastFrame
+    , Board
+    , Frame
+    , Hit(..)
+    , isFrameOver
+    , isLastFrame
     , isLastFrameOver
     , isGameOver
-	, Shot
-	, sumShots)
+    , Shot
+    , sumShots)
 where
-	
+
 import Control.Arrow ((>>>))
 import qualified Data.Sequence as Seq
 
