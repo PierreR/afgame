@@ -29,21 +29,21 @@ import qualified Data.Sequence as Seq
 
 -- | Strike when all the pins are knocked down
 isStrike :: Int -> Bool
-isStrike a = a == allPins
+isStrike x = x == allPins
 
 -- | Spare when
 --     1. the frame is not empty
 --     2. all pins are knocked down within 2 shots
 --     3. the previous shot is not a spare (only happens in the last frame)
 isSpare :: Int -> Frame -> Bool
-isSpare a f =
+isSpare x f =
     let (previousHit, previousShot) = head f
     in  not (null f)
-        && a + previousShot == allPins
+        && x + previousShot == allPins
         && previousHit /= Spare
 
 isShotBogus :: Int -> Bool
-isShotBogus a = a > allPins || a < 0
+isShotBogus x = x > allPins || x < 0
 
 emptyBoard :: Board
 emptyBoard = [[]]
@@ -54,8 +54,8 @@ data ScoreBoard = Done Int | Current (Int, Board) deriving (Show, Eq)
 --   if the current frame is over, create a new frame containing the sole new shot.
 updateGame :: Int -> Board -> Either String Board
 updateGame _ [] = Left "Board game should be initialized"
-updateGame a b@(currentFrame:xs)
-    | isShotBogus a = Left "Invalid shot. Try again."
+updateGame x b@(currentFrame:xs)
+    | isShotBogus x = Left "Invalid shot. Try again."
     | isGameOver b  = Left "This game is over !"
     | isFrameOver b = Right ([newShot] : b) -- create a new frame with one new shot
     | otherwise     = do
@@ -68,9 +68,9 @@ updateGame a b@(currentFrame:xs)
     where
         -- | Within a Frame, from the number of pins down, construct a 'Shot'.
         newShot
-            | isStrike a   = (Strike, allPins)
-            | isSpare a currentFrame  = (Spare, a)
-            | otherwise    = (Normal, a)
+            | isStrike x   = (Strike, allPins)
+            | isSpare x currentFrame  = (Spare, x)
+            | otherwise    = (Normal, x)
 
 
 -- | Calculate the score of the updated board.
@@ -86,31 +86,31 @@ calcScore b =
     in Seq.foldlWithIndex (calcShot allShots) 0 indexedShots
     where
         calcShot :: [Shot] -> Int -> Int -> (Hit, Int) -> Int
-        calcShot xs acc i (h,a)
+        calcShot xs acc i (h,x)
             | h == Strike = accScore + sumShots (take 3 after) -- Strike earns the score of the 3 next shots
             | h == Spare  = accScore + sumShots (take 2 after) -- Spare earns the score of the 2 next shots
             | h == Normal = accScore
             | otherwise = 0
             where
-                accScore = acc + a -- sum the new score in the fold accumulator
+                accScore = acc + x -- sum the new score in the fold accumulator
                 after = drop (succ i) xs -- timewise, list of shots recorded after the current index
 
 -- | Given a shot and a board, either returns an error msg or produces (Score, Board)
 score :: Int -> Board -> Either String ScoreBoard
-score a b = do
-    b' <- updateGame a b
+score x b = do
+    b' <- updateGame x b
     let s = calcScore b'
     if isGameOver b'
         then return $ Done s
         else return $ Current (s, b')
 
 scores :: [Int] -> Board -> Either String ScoreBoard
-scores (a:as) b = do
-   case score a b of
-      Right c@(Current (_, b')) -> do
-          if null as
+scores (x:xs) b = 
+   case score x b of
+      Right c@(Current (_, b')) ->
+          if null xs
           then return c
-          else scores as b'
+          else scores xs b'
       Right (Done s) -> Right $ Done s
       Left s -> Left s
 scores [] _ = Left "Empty input. Try again"
