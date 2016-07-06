@@ -2,7 +2,7 @@ module Main (main)
 
 where
 
-import qualified Afgame.Pipes as AP
+import qualified Afgame.ListT
 
 main :: IO ()
-main = AP.main
+main = Afgame.ListT.main
