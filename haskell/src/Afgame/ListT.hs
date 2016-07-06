@@ -1,18 +1,18 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Afgame.ListT
 
 where
 
-import Afgame
-import Afgame.Internal
-
-import Control.Monad.State
-import qualified Control.Monad.State.Strict as S
-import List.Transformer
+import           Control.Monad.State.Strict
+import           Data.Monoid
+import           List.Transformer
 import qualified System.IO
-import Text.Printf (printf)
-import Text.Read(readMaybe)
-import Data.Monoid
+import           Text.Printf                (printf)
+import           Text.Read                  (readMaybe)
+
+import           Afgame
+import           Afgame.Internal
 
 prompt :: (MonadIO m) => ListT m Int
 prompt = ListT go
